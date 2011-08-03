@@ -6,6 +6,7 @@
  * The followings are the available columns in table 'mailbox':
  * @property integer $id
  * @property string $user_id
+ * @property string $email
  * @property string $type
  * @property string $host
  * @property integer $port
@@ -17,6 +18,8 @@
  * @property integer $pid
  * @property string $process_started
  * @property string $process_last_checkin
+ * @property string $imap_action
+ * @property string $imap_move_folder
  *
  * The followings are the available model relations:
  * @property User $user
@@ -24,12 +27,21 @@
  */
 class Mailbox extends CActiveRecord
 {
-	const DefaultPortPop3Plain = 110;
-	const DefaultPortPop3Ssl = 995;
-	const DefaultPortImapPlain = 143;
+	const DefaultPortPop3Plain=110;
+	const DefaultPortPop3Ssl=995;
+	const DefaultPortImapPlain=143;
 	
-	const TypePop3 = 'pop3';
-	const TypeImap = 'imap';
+	const TypePop3='pop3';
+	const TypeImap='imap';
+	
+	const ImapActionMove='move';
+	const ImapActionMark='mark';
+	const ImapActionDelete='delete';
+	
+	/**
+	 * @var Zend_Mail_Storage_Abstract
+	 */
+	private $_storage;
 	
 	/**
 	 * Returns the static model of the specified AR class.
@@ -56,16 +68,16 @@ class Mailbox extends CActiveRecord
 		// NOTE: you should only define rules for those attributes that
 		// will receive user inputs.
 		return array(
-			array('user_id, type, host, port, username, password, active', 'required'),
+			array('user_id, email, type, host, port, username, password, active', 'required'),
 			array('port, active, pid', 'numerical', 'integerOnly'=>true),
 			array('user_id', 'length', 'max'=>10),
+			array('email, host', 'length', 'max'=>255),
 			array('type, ssl', 'length', 'max'=>4),
-			array('host', 'length', 'max'=>255),
 			array('username, password', 'length', 'max'=>80),
 			array('added_on, process_started, process_last_checkin', 'safe'),
 			// The following rule is used by search().
 			// Please remove those attributes that should not be searched.
-			array('id, user_id, type, host, port, username, password, ssl, active, added_on, pid, process_started, process_last_checkin', 'safe', 'on'=>'search'),
+			array('id, user_id, email, type, host, port, username, password, ssl, active, added_on, pid, process_started, process_last_checkin', 'safe', 'on'=>'search'),
 		);
 	}
 
@@ -78,7 +90,7 @@ class Mailbox extends CActiveRecord
 		// class name for the relations automatically generated below.
 		return array(
 			'user' => array(self::BELONGS_TO, 'User', 'user_id'),
-			'process_logs' => array(self::HAS_MANY, 'ProcessLog', 'mailbox_id'),
+			'processLogs' => array(self::HAS_MANY, 'ProcessLog', 'mailbox_id'),
 		);
 	}
 
@@ -90,17 +102,20 @@ class Mailbox extends CActiveRecord
 		return array(
 			'id' => 'ID',
 			'user_id' => 'User',
+			'email' => 'Email',
 			'type' => 'Type',
 			'host' => 'Host',
 			'port' => 'Port',
 			'username' => 'Username',
 			'password' => 'Password',
-			'ssl' => 'SSL',
+			'ssl' => 'Ssl',
 			'active' => 'Active',
 			'added_on' => 'Added On',
 			'pid' => 'Pid',
 			'process_started' => 'Process Started',
 			'process_last_checkin' => 'Process Last Checkin',
+			'imap_action' => 'Delete Action',
+			'imap_move_folder' => 'Move Message To Folder'
 		);
 	}
 
@@ -117,6 +132,7 @@ class Mailbox extends CActiveRecord
 
 		$criteria->compare('id',$this->id);
 		$criteria->compare('user_id',$this->user_id,true);
+		$criteria->compare('email',$this->email,true);
 		$criteria->compare('type',$this->type,true);
 		$criteria->compare('host',$this->host,true);
 		$criteria->compare('port',$this->port);
@@ -132,5 +148,48 @@ class Mailbox extends CActiveRecord
 		return new CActiveDataProvider($this, array(
 			'criteria'=>$criteria,
 		));
+	}
+	
+	/**
+	 * @return Zend_Mail_Storage_Abstract 
+	 */
+	public function openStorage()
+	{
+		if (!isset($this->_storage)) {
+			switch ($this->mailbox->ssl) {
+				case 'ssl':
+					$ssl='SSL';
+					break;
+				case 'tls':
+					$ssl='TLS';
+					break;
+				default:
+					$ssl=false;
+			}
+			switch($this->type) {
+				case 'imap':
+					$mail=new EZend_Mail_Storage_Imap(array(
+						'host'=>$this->mailbox->host,
+						'user'=>$this->mailbox->username,
+						'password'=>$this->mailbox->password,
+						'ssl'=>$ssl
+					));
+					break;
+				case 'pop3':
+					$mail=new EZend_Mail_Storage_Pop3(array(
+						'host'=>$this->mailbox->host,
+						'user'=>$this->mailbox->username,
+						'password'=>$this->mailbox->password,
+						'ssl'=>$ssl
+					));
+					break;
+			}
+		}
+		return $this->_storage;
+	}
+	
+	public function closeStorage()
+	{
+		unset($this->_storage);
 	}
 }

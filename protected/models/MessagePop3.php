@@ -1,18 +1,27 @@
 <?php
 
 /**
- * This is the model class for table "header".
+ * This is the model class for table "message_pop3".
  *
- * The followings are the available columns in table 'header':
- * @property integer $id
- * @property string $name
- * @property string $created
+ * The followings are the available columns in table 'message_pop3':
+ * @property string $id
+ * @property integer $mailbox_id
+ * @property string $message_id
+ * @property integer $last_touch
+ *
+ * The followings are the available model relations:
+ * @property Mailbox $mailbox
  */
-class Header extends CActiveRecord
+class MessagePop3 extends CActiveRecord
 {
+	public function primaryKey()
+	{
+		return array('mailbox_id', 'message_id');
+	}
+	
 	/**
 	 * Returns the static model of the specified AR class.
-	 * @return Header the static model class
+	 * @return MessagePop3 the static model class
 	 */
 	public static function model($className=__CLASS__)
 	{
@@ -24,7 +33,7 @@ class Header extends CActiveRecord
 	 */
 	public function tableName()
 	{
-		return 'header';
+		return 'message_pop3';
 	}
 
 	/**
@@ -35,12 +44,9 @@ class Header extends CActiveRecord
 		// NOTE: you should only define rules for those attributes that
 		// will receive user inputs.
 		return array(
-			array('id', 'required'),
-			array('id', 'numerical', 'integerOnly'=>true),
-			array('name, created', 'safe'),
-			// The following rule is used by search().
-			// Please remove those attributes that should not be searched.
-			array('name', 'safe', 'on'=>'search'),
+			array('mailbox_id, message_id, last_touch', 'required'),
+			array('mailbox_id, last_touch', 'numerical', 'integerOnly'=>true),
+			array('message_id', 'length', 'max'=>70),
 		);
 	}
 
@@ -52,6 +58,7 @@ class Header extends CActiveRecord
 		// NOTE: you may need to adjust the relation name and the related
 		// class name for the relations automatically generated below.
 		return array(
+			'mailbox' => array(self::BELONGS_TO, 'Mailbox', 'mailbox_id'),
 		);
 	}
 
@@ -62,8 +69,9 @@ class Header extends CActiveRecord
 	{
 		return array(
 			'id' => 'ID',
-			'name' => 'Name',
-			'created' => 'Created',
+			'mailbox_id' => 'Mailbox',
+			'message_id' => 'Message',
+			'last_touch' => 'Last Touch',
 		);
 	}
 
@@ -78,22 +86,13 @@ class Header extends CActiveRecord
 
 		$criteria=new CDbCriteria;
 
-		$criteria->compare('id',$this->id);
-		$criteria->compare('name',$this->name,true);
-		$criteria->compare('created',$this->created,true);
+		$criteria->compare('id',$this->id,true);
+		$criteria->compare('mailbox_id',$this->mailbox_id);
+		$criteria->compare('message_id',$this->message_id,true);
+		$criteria->compare('last_touch',$this->last_touch);
 
 		return new CActiveDataProvider($this, array(
 			'criteria'=>$criteria,
 		));
-	}
-	
-	public static function getAllHeaders()
-	{
-		$banned_headers=array();
-		foreach (self::model()->findAll() as $header)
-		{
-			$banned_headers[]=strtolower($header->name);
-		}
-		return $banned_headers;
 	}
 }

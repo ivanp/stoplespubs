@@ -317,6 +317,7 @@ class Zend_Mail_Protocol_Imap
         }
         // last line has response code
         if ($tokens[0] == 'OK') {
+//					echo "RESPONSE: ".var_export($tokens, true)."\n";
             return $lines ? $lines : true;
         } else if ($tokens[0] == 'NO'){
             return false;
@@ -364,6 +365,7 @@ class Zend_Mail_Protocol_Imap
             }
         }
 
+//			echo "REQUEST: $line\n";
         if (@fputs($this->_socket, $line . "\r\n") === false) {
             /**
              * @see Zend_Mail_Protocol_Exception
