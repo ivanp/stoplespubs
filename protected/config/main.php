@@ -6,7 +6,8 @@
 // This is the main Web application configuration. Any writable
 // CWebApplication properties can be configured here.
 return CMap::mergeArray(
-	require(dirname(__FILE__).'/_db.php'),
+	// Database configuration
+	require(dirname(__FILE__).'/common.php'),
 	array(
 		'basePath'=>dirname(__FILE__).DIRECTORY_SEPARATOR.'..',
 		'name'=>'My Web Application',
@@ -73,6 +74,7 @@ return CMap::mergeArray(
 		'params'=>array(
 			// this is used in contact page
 			'adminEmail'=>'ivan@primaguna.com',
-		),
+			'appKey'=>'$4$DLNvMUQF$XbKOkuj+O5QHzmOE8Nxs10l61k8$'
+		),	
 	)
 );
