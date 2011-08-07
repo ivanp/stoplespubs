@@ -27,6 +27,5 @@ $this->menu=array(
 		'updated',
 		'created',
 		'lastlogin',
-		'level',
 	),
 )); ?>

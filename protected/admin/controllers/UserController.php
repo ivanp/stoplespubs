@@ -1,7 +1,12 @@
 <?php
 
-class UserController extends AdminController
+class UserController extends Controller
 {
+	public function actionIndex()
+	{
+		$this->render('index');
+	}
+
 	public function actionLogin()
 	{
 		$this->render('login');
@@ -10,11 +15,6 @@ class UserController extends AdminController
 	public function actionLogout()
 	{
 		$this->render('logout');
-	}
-
-	public function actionRecover()
-	{
-		$this->render('recover');
 	}
 
 	// Uncomment the following methods and override them if needed

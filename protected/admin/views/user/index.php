@@ -1,7 +1,6 @@
 <?php
 $this->breadcrumbs=array(
-	'User'=>array('/user'),
-	'Logout',
+	'User',
 );?>
 <h1><?php echo $this->id . '/' . $this->action->id; ?></h1>
 

@@ -30,26 +30,6 @@
 		<?php echo $form->textField($model,'lastname',array('size'=>60,'maxlength'=>80)); ?>
 	</div>
 
-	<div class="row">
-		<?php echo $form->label($model,'updated'); ?>
-		<?php echo $form->textField($model,'updated'); ?>
-	</div>
-
-	<div class="row">
-		<?php echo $form->label($model,'created'); ?>
-		<?php echo $form->textField($model,'created'); ?>
-	</div>
-
-	<div class="row">
-		<?php echo $form->label($model,'lastlogin'); ?>
-		<?php echo $form->textField($model,'lastlogin'); ?>
-	</div>
-
-	<div class="row">
-		<?php echo $form->label($model,'level'); ?>
-		<?php echo $form->textField($model,'level',array('size'=>5,'maxlength'=>5)); ?>
-	</div>
-
 	<div class="row buttons">
 		<?php echo CHtml::submitButton('Search'); ?>
 	</div>

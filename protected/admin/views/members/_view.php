@@ -8,10 +8,6 @@
 	<?php echo CHtml::encode($data->username); ?>
 	<br />
 
-	<b><?php echo CHtml::encode($data->getAttributeLabel('password')); ?>:</b>
-	<?php echo CHtml::encode($data->password); ?>
-	<br />
-
 	<b><?php echo CHtml::encode($data->getAttributeLabel('email')); ?>:</b>
 	<?php echo CHtml::encode($data->email); ?>
 	<br />
@@ -28,7 +24,6 @@
 	<?php echo CHtml::encode($data->updated); ?>
 	<br />
 
-	<?php /*
 	<b><?php echo CHtml::encode($data->getAttributeLabel('created')); ?>:</b>
 	<?php echo CHtml::encode($data->created); ?>
 	<br />
@@ -36,11 +31,5 @@
 	<b><?php echo CHtml::encode($data->getAttributeLabel('lastlogin')); ?>:</b>
 	<?php echo CHtml::encode($data->lastlogin); ?>
 	<br />
-
-	<b><?php echo CHtml::encode($data->getAttributeLabel('level')); ?>:</b>
-	<?php echo CHtml::encode($data->level); ?>
-	<br />
-
-	*/ ?>
 
 </div>

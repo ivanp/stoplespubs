@@ -1,33 +1,28 @@
 <?php
 
 /**
- * This is the model class for table "user".
+ * This is the model class for table "admin".
  *
- * The followings are the available columns in table 'user':
+ * The followings are the available columns in table 'admin':
  * @property string $id
  * @property string $username
  * @property string $password
+ * @property integer $active
+ * @property integer $created
+ * @property integer $lastlogin
  * @property string $email
- * @property string $firstname
- * @property string $lastname
- * @property string $updated
- * @property string $created
- * @property string $lastlogin
- * @property string $level
- *
- * The followings are the available model relations:
- * @property Mailbox[] $mailboxes
  */
-class User extends CActiveRecord
+class AdminUser extends CActiveRecord
 {
 	const HashAlgorithm='sha256';
 	
 	public $password_repeat;
+	
 	public $password_modified=false;
 	
 	/**
 	 * Returns the static model of the specified AR class.
-	 * @return User the static model class
+	 * @return AdminUser the static model class
 	 */
 	public static function model($className=__CLASS__)
 	{
@@ -39,7 +34,7 @@ class User extends CActiveRecord
 	 */
 	public function tableName()
 	{
-		return 'user';
+		return 'admin';
 	}
 
 	/**
@@ -50,18 +45,13 @@ class User extends CActiveRecord
 		// NOTE: you should only define rules for those attributes that
 		// will receive user inputs.
 		return array(
-			array('username, password, email', 'length', 'max'=>255),
-			array('firstname, lastname', 'length', 'max'=>80),
-			array('firstname, lastname', 'required', 'on'=>'register,update'),
-			array('username', 'unique'),
-			array('email', 'email'),
-			array('email', 'unique'),
-			array('updated, created, lastlogin', 'unsafe'),
-			array('password', 'length', 'min'=>4, 'on'=>'update'),
+			array('username, password, active, email', 'required'),
+			array('active, created, lastlogin', 'numerical', 'integerOnly'=>true),
+			array('username', 'length', 'max'=>80),
+			array('password, email', 'length', 'max'=>255),
 			// The following rule is used by search().
 			// Please remove those attributes that should not be searched.
-			array('id, username, password, email, firstname, lastname, updated, created, lastlogin', 'safe', 'on'=>'search'),
-			array('password', 'compare', 'compareAttribute'=>'password_repeat', 'on'=>'register,update'),
+			array('id, username, password, active, created, lastlogin, email', 'safe', 'on'=>'search'),
 		);
 	}
 
@@ -73,7 +63,6 @@ class User extends CActiveRecord
 		// NOTE: you may need to adjust the relation name and the related
 		// class name for the relations automatically generated below.
 		return array(
-			'mailbox' => array(self::HAS_ONE, 'Mailbox', 'user_id'),
 		);
 	}
 
@@ -86,13 +75,10 @@ class User extends CActiveRecord
 			'id' => 'ID',
 			'username' => 'Username',
 			'password' => 'Password',
-			'email' => 'Email',
-			'firstname' => 'Firstname',
-			'lastname' => 'Lastname',
-			'updated' => 'Updated',
+			'active' => 'Active',
 			'created' => 'Created',
 			'lastlogin' => 'Lastlogin',
-			'level' => 'Level',
+			'email' => 'Email',
 		);
 	}
 
@@ -110,9 +96,10 @@ class User extends CActiveRecord
 		$criteria->compare('id',$this->id,true);
 		$criteria->compare('username',$this->username,true);
 		$criteria->compare('password',$this->password,true);
+		$criteria->compare('active',$this->active);
+		$criteria->compare('created',$this->created);
+		$criteria->compare('lastlogin',$this->lastlogin);
 		$criteria->compare('email',$this->email,true);
-		$criteria->compare('firstname',$this->firstname,true);
-		$criteria->compare('lastname',$this->lastname,true);
 
 		return new CActiveDataProvider($this, array(
 			'criteria'=>$criteria,
@@ -135,43 +122,19 @@ class User extends CActiveRecord
 				else
 					unset($this->password);
 			}
+
 			if ($this->getIsNewRecord())
-				$this->created=time();
-			else
-				$this->updated=time();
+				$this->created = time();
 			return true;
 		}
 		else
 			return false;
 	}
 	
-	public function getDisplayName()
+	public function __set($name, $value)
 	{
-		$name=ucwords(strtolower(trim($this->firstname.' '.$this->lastname)));
-		if (!strlen($name)) 
-			$name=$this->email;
-		return $name;
-	}
-	
-	public function hasMailbox()
-	{
-		return ($this->mailbox instanceof Mailbox);
-	}
-	
-	/**
-	 * @return Zend_Date
-	 */
-	public function getCreated()
-	{
-		$date=new Zend_Date();
-		$date->setTimestamp($this->created);
-		return $date;
-	}
-	
-	public function getUpdated()
-	{
-		$date=new Zend_Date();
-		$date->setTimestamp($this->updated);
-		return $date;
+		if ($name=='password')
+			$this->password_modified=true;
+		parent::__set($name, $value);
 	}
 }

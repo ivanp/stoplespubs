@@ -15,6 +15,7 @@ return array(
 	'params'=>array(
 		// this is used in contact page
 		'adminEmail'=>'ivan@primaguna.com',
-		'appKey'=>'$4$DLNvMUQF$XbKOkuj+O5QHzmOE8Nxs10l61k8$'
+		'appKey'=>'$4$DLNvMUQF$XbKOkuj+O5QHzmOE8Nxs10l61k8$',
+		'defaultTimezone'=>'Asia/Jakarta',
 	),	
 );
