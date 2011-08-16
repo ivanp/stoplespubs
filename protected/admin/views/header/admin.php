@@ -44,7 +44,7 @@ or <b>=</b>) at the beginning of each of your search values to specify how the c
 	'columns'=>array(
 		'id',
 		'name',
-		'created',
+		'created:datetime',
 		array(
 			'class'=>'CButtonColumn',
 		),
