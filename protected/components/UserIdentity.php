@@ -8,6 +8,16 @@
 class UserIdentity extends CUserIdentity
 {
 	/**
+	 * @var User
+	 */
+	private $_user;
+	
+	public function __construct($username,$password)
+	{
+		$this->_user=User::model()->find('email=?', array($username));
+		parent::__construct($username,$password);
+	}
+	/**
 	 * Authenticates a user.
 	 * The example implementation makes sure if the username and password
 	 * are both 'demo'.
@@ -17,17 +27,17 @@ class UserIdentity extends CUserIdentity
 	 */
 	public function authenticate()
 	{
-		$users=array(
-			// username => password
-			'demo'=>'demo',
-			'admin'=>'admin',
-		);
-		if(!isset($users[$this->username]))
+		if (!($this->_user instanceof User))
 			$this->errorCode=self::ERROR_USERNAME_INVALID;
-		else if($users[$this->username]!==$this->password)
+		else if($this->_user->password!==$this->_user->encrypt($this->password))
 			$this->errorCode=self::ERROR_PASSWORD_INVALID;
 		else
 			$this->errorCode=self::ERROR_NONE;
 		return !$this->errorCode;
+	}
+	
+	public function getId()
+	{
+		return ($this->_user instanceof User) ? $this->_user->id : null;
 	}
 }

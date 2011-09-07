@@ -1,0 +1,8 @@
+Options +FollowSymLinks
+IndexIgnore */*
+RewriteEngine on
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !(gif|jpg|png)$
+RewriteRule ^(.+)$ index.php?r=$1 [L,QSA]

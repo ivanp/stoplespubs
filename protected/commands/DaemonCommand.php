@@ -73,7 +73,7 @@ class DaemonCommand extends CConsoleCommand
 			$mail=new EZend_Mail_Storage_Pop3(array(
 				'host'=>$this->mailbox->host,
 				'user'=>$this->mailbox->username,
-				'password'=>$this->mailbox->password,
+				'password'=>$this->mailbox->user->decrypt(),
 				'ssl'=>$ssl
 			));
 			// Mark start time
@@ -170,7 +170,7 @@ class DaemonCommand extends CConsoleCommand
 		$mail=new EZend_Mail_Storage_Imap(array(
 			'host'=>$this->mailbox->host,
 			'user'=>$this->mailbox->username,
-			'password'=>$this->mailbox->password,
+			'password'=>$this->mailbox->user->password,
 			'ssl'=>$ssl
 		));
 		

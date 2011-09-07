@@ -9,7 +9,6 @@ $this->menu=array(
 	array('label'=>'Create Header', 'url'=>array('create')),
 	array('label'=>'Update Header', 'url'=>array('update', 'id'=>$model->id)),
 	array('label'=>'Delete Header', 'url'=>'#', 'linkOptions'=>array('submit'=>array('delete','id'=>$model->id),'confirm'=>'Are you sure you want to delete this item?')),
-	array('label'=>'Manage Header', 'url'=>array('admin')),
 );
 ?>
 
@@ -20,6 +19,6 @@ $this->menu=array(
 	'attributes'=>array(
 		'id',
 		'name',
-		'created',
+		'created:datetime',
 	),
-)); ?>
+));

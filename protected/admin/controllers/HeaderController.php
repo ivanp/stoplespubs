@@ -94,7 +94,7 @@ class HeaderController extends AdminController
 	/**
 	 * Lists all models.
 	 */
-	public function actionIndex()
+	public function actionIndex_old()
 	{
 		$dataProvider=new CActiveDataProvider('Header');
 		$this->render('index',array(
@@ -105,14 +105,14 @@ class HeaderController extends AdminController
 	/**
 	 * Manages all models.
 	 */
-	public function actionAdmin()
+	public function actionIndex()
 	{
 		$model=new Header('search');
 		$model->unsetAttributes();  // clear any default values
 		if(isset($_GET['Header']))
 			$model->attributes=$_GET['Header'];
 
-		$this->render('admin',array(
+		$this->render('index',array(
 			'model'=>$model,
 		));
 	}

@@ -1,12 +1,11 @@
 <?php
 $this->breadcrumbs=array(
-	'Headers'=>array('index'),
-	'Manage',
+	'Headers'
 );
 
 $this->menu=array(
-	array('label'=>'List Header', 'url'=>array('index')),
-	array('label'=>'Create Header', 'url'=>array('create')),
+//	array('label'=>'List Header', 'url'=>array('index')),
+	array('label'=>'Create New Header', 'url'=>array('create')),
 );
 
 Yii::app()->clientScript->registerScript('search', "

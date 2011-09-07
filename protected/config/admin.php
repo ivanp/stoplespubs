@@ -21,6 +21,7 @@ return CMap::mergeArray(
 		// autoloading model and component classes
 		'import'=>array(
 			'application.models.*',
+			'application.models.forms.*',
 			'application.components.*',
 		),
 
@@ -36,10 +37,18 @@ return CMap::mergeArray(
 
 		// application components
 		'components'=>array(
+			'session'=>array(
+				'sessionName'=>'stoplesadmin'
+			),
+			'urlManager'=>array(
+				'showScriptName' => true, // remove index.php in URL
+				'urlFormat'=>'path',
+//				'BaseUrl'=>'/stoplespubs/admin',
+			),
 			'user'=>array(
+				'class'=>'AdminWebUser',
 				// enable cookie-based authentication
 				'allowAutoLogin'=>true,
-				'autoRenewCookie'=>true
 			),
 			// uncomment the following to enable URLs in path-format
 			/*

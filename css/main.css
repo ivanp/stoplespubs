@@ -227,3 +227,26 @@ div.search-form
 {
 	background: #80CFFF;
 }
+
+
+/* CHANGES BY IVAN */
+
+.form .row label.inline
+{
+	display: inline;
+}
+
+div#sidebar form#login-form input[type=text], div#sidebar form#login-form input[type=password]
+{
+	width: 152px;
+}
+
+div.flash-success table
+{
+	margin-bottom: 0;
+}
+
+div.form label.inline 
+{
+	font-weight: normal;
+}

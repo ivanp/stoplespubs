@@ -11,6 +11,9 @@ class AdminLoginForm extends CFormModel
 	public $password;
 	public $rememberMe;
 
+	/**
+	 * @var AdminIdentity
+	 */
 	private $_identity;
 
 	/**

@@ -11,6 +11,7 @@ return CMap::mergeArray(
 		'import'=>array(
 			'application.models.*',
 			'application.components.*',
+			'application.vendors.*'
 		),
 		'components'=>array(
 //			'db'=>array(

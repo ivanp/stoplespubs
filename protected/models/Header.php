@@ -62,7 +62,7 @@ class Header extends CActiveRecord
 	{
 		return array(
 			'id' => 'ID',
-			'name' => 'Name',
+			'name' => 'Header Name',
 			'created' => 'Created',
 		);
 	}

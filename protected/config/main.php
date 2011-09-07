@@ -18,7 +18,9 @@ return CMap::mergeArray(
 		// autoloading model and component classes
 		'import'=>array(
 			'application.models.*',
+			'application.models.forms.*',
 			'application.components.*',
+			'application.vendors.*'
 		),
 
 		'modules'=>array(
@@ -33,9 +35,18 @@ return CMap::mergeArray(
 
 		// application components
 		'components'=>array(
+			'session'=>array(
+				'sessionName'=>'stoplesuser'
+			),
+			'urlManager'=>array(
+				'showScriptName' => false, // remove index.php in URL
+				'urlFormat'=>'path',
+			),
 			'user'=>array(
+				'class'=>'WebUser',
 				// enable cookie-based authentication
 				'allowAutoLogin'=>true,
+				'loginUrl' => array('/site/index')
 			),
 			// uncomment the following to enable URLs in path-format
 			/*
@@ -71,10 +82,5 @@ return CMap::mergeArray(
 
 		// application-level parameters that can be accessed
 		// using Yii::app()->params['paramName']
-		'params'=>array(
-			// this is used in contact page
-			'adminEmail'=>'ivan@primaguna.com',
-			'appKey'=>'$4$DLNvMUQF$XbKOkuj+O5QHzmOE8Nxs10l61k8$'
-		),	
 	)
 );

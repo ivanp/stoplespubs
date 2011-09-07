@@ -17,5 +17,11 @@ return array(
 		'adminEmail'=>'ivan@primaguna.com',
 		'appKey'=>'$4$DLNvMUQF$XbKOkuj+O5QHzmOE8Nxs10l61k8$',
 		'defaultTimezone'=>'Asia/Jakarta',
+		'SWREG.settings'=>array(
+				'shopId'=>'132573',
+				'productId'=>'132573-1',
+				'variationId'=>'0',
+				'deliveryId'=>'0'
+		)
 	),	
 );

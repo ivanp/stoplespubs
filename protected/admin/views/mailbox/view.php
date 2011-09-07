@@ -1,7 +1,7 @@
 <?php
 $this->breadcrumbs=array(
 	'Mailboxes'=>array('index'),
-	$model->id,
+	$model->user->email
 );
 
 $this->menu=array(

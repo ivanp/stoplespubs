@@ -6,12 +6,10 @@
  * The followings are the available columns in table 'mailbox':
  * @property integer $id
  * @property string $user_id
- * @property string $email
  * @property string $type
  * @property string $host
  * @property integer $port
  * @property string $username
- * @property string $password
  * @property string $ssl
  * @property integer $active
  * @property string $added_on
@@ -68,17 +66,39 @@ class Mailbox extends CActiveRecord
 		// NOTE: you should only define rules for those attributes that
 		// will receive user inputs.
 		return array(
-			array('user_id, email, type, host, port, username, password, active', 'required'),
-			array('port, active, pid', 'numerical', 'integerOnly'=>true),
-			array('user_id', 'length', 'max'=>10),
-			array('email, host', 'length', 'max'=>255),
-			array('type, ssl', 'length', 'max'=>4),
-			array('username, password', 'length', 'max'=>80),
-			array('added_on, process_started, process_last_checkin', 'safe'),
-			// The following rule is used by search().
-			// Please remove those attributes that should not be searched.
-			array('id, user_id, email, type, host, port, username, password, ssl, active, added_on, pid, process_started, process_last_checkin', 'safe', 'on'=>'search'),
+			array('user_id', 'unsafe'), // cannot be changed!
+			array('user_id', 'required', 'on'=>'insert'), // only can be set on insert
+			array('user_id', 'exist', 'className'=>'User', 'attributeName'=>'id', 'on'=>'insert'),
+			array('user_id, active, pid', 'numerical', 'integerOnly'=>true),
+			array('host', 'length', 'max'=>255),
+			array('port', 'numerical', 'min'=>1, 'max'=>65535, 'integerOnly'=>true),
+			array('username', 'length', 'max'=>255),
+			array('active, added_on, process_started, process_last_checkin', 'unsafe'),
+			array('type', 'in', 'range'=>array('pop3', 'imap')),
+			array('ssl', 'default', 'value'=>'none'), // Default to none
+			array('ssl', 'in', 'range'=>array('none', 'tls', 'ssl')),
+			
+			array('imap_action', 'default', 'value'=>'delete'), // Default to delete mail
+			array('imap_action', 'in', 'range'=>array('move','mark','delete'), ),
+			array('imap_move_folder', 'length', 'max'=>255),
+			array('imap_action', 'requiredOnImap'),
+				
+			array('type, host, port, username, ssl', 'required', 'on'=>'insert,update'),
 		);
+	}
+	
+	public function requiredOnImap($attribute,$params)
+	{
+		if ($this->type==self::TypeImap)
+		{
+			$validator=new CRequiredValidator();
+			$validator->attributes=array('imap_action','imap_move_folder');
+			// imap_action is required when on IMAP
+			$validator->validate($this, array('imap_action'));
+			// imap_move_folder needs to be filled when 'move' is chosen
+			if ($this->imap_action==self::ImapActionMove)
+				$validator->validate($this, array('imap_move_folder'));
+		}
 	}
 
 	/**
@@ -101,17 +121,15 @@ class Mailbox extends CActiveRecord
 	{
 		return array(
 			'id' => 'ID',
-			'user_id' => 'User',
-			'email' => 'Email',
+			'user_id' => 'Username',
 			'type' => 'Type',
-			'host' => 'Host',
-			'port' => 'Port',
+			'host' => 'Mail server hostname',
+			'port' => 'Mail server port',
 			'username' => 'Username',
-			'password' => 'Password',
-			'ssl' => 'Ssl',
+			'ssl' => 'SSL',
 			'active' => 'Active',
 			'added_on' => 'Added On',
-			'pid' => 'Pid',
+			'pid' => 'PID',
 			'process_started' => 'Process Started',
 			'process_last_checkin' => 'Process Last Checkin',
 			'imap_action' => 'Delete Action',
@@ -137,7 +155,6 @@ class Mailbox extends CActiveRecord
 		$criteria->compare('host',$this->host,true);
 		$criteria->compare('port',$this->port);
 		$criteria->compare('username',$this->username,true);
-		$criteria->compare('password',$this->password,true);
 		$criteria->compare('ssl',$this->ssl,true);
 		$criteria->compare('active',$this->active);
 		$criteria->compare('added_on',$this->added_on,true);
@@ -155,8 +172,10 @@ class Mailbox extends CActiveRecord
 	 */
 	public function openStorage()
 	{
+		$user=$this->user;
+		if($user instanceof User);
 		if (!isset($this->_storage)) {
-			switch ($this->mailbox->ssl) {
+			switch ($this->ssl) {
 				case 'ssl':
 					$ssl='SSL';
 					break;
@@ -169,23 +188,42 @@ class Mailbox extends CActiveRecord
 			switch($this->type) {
 				case 'imap':
 					$mail=new EZend_Mail_Storage_Imap(array(
-						'host'=>$this->mailbox->host,
-						'user'=>$this->mailbox->username,
-						'password'=>$this->mailbox->password,
+						'host'=>$this->host,
+						'user'=>$this->username,
+						'password'=>$user->decrypt(),
 						'ssl'=>$ssl
 					));
 					break;
 				case 'pop3':
 					$mail=new EZend_Mail_Storage_Pop3(array(
-						'host'=>$this->mailbox->host,
-						'user'=>$this->mailbox->username,
-						'password'=>$this->mailbox->password,
+						'host'=>$this->host,
+						'user'=>$this->username,
+						'password'=>$user->decrypt(),
 						'ssl'=>$ssl
 					));
 					break;
 			}
+			$this->_storage=$mail;
 		}
 		return $this->_storage;
+	}
+	
+	public function getImapFolders()
+	{
+		if ($this->type==self::TypeImap)
+		{
+			$this->openStorage();
+			$folders=array();
+			$iterator=new RecursiveIteratorIterator($this->_storage->getFolders(), RecursiveIteratorIterator::SELF_FIRST);
+			foreach ($iterator as $localName => $folder) 
+			{
+				if ($folder->isSelectable()) 
+					$folders[$folder->__toString()]=$localName;
+			}
+			return $folders;
+		}
+		else
+			return null;
 	}
 	
 	public function closeStorage()
