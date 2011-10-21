@@ -89,11 +89,15 @@ class Header extends CActiveRecord
 	
 	public static function getAllHeaders()
 	{
-		$banned_headers=array();
-		foreach (self::model()->findAll() as $header)
+		$cache=Yii::app()->cache;
+		$headers=$cache->get('AllHeaders');
+		if ($headers===false)
 		{
-			$banned_headers[]=strtolower($header->name);
+			$headers=array();
+			foreach (self::model()->findAll() as $header)
+				$headers[]=strtolower($header->name);
+			$cache->set('AllHeaders',$headers,600);
 		}
-		return $banned_headers;
+		return $headers;
 	}
 }

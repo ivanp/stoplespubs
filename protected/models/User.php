@@ -99,7 +99,7 @@ class User extends CActiveRecord
 			'lastname' => 'Last name',
 			'updated' => 'Updated',
 			'created' => 'Created',
-			'lastlogin' => 'Lastlogin',
+			'lastlogin' => 'Last login',
 			'password_entered' => 'Mailbox password',
 			'password_repeat' => 'Re-enter password',
 			'is_accept_cos' => 'Accept our Conditions of Service'

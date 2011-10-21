@@ -25,21 +25,85 @@ class MembersController extends AdminController
 	 */
 	public function actionCreate()
 	{
-		$model=new User;
-
-		// Uncomment the following line if AJAX validation is needed
-		// $this->performAjaxValidation($model);
-
+		$user=new User();
+		$mailbox=new Mailbox();
+		$mailbox->user_id=$user->id;
+		
+		$save_user=$save_mailbox=false;
 		if(isset($_POST['User']))
 		{
-			$model->attributes=$_POST['User'];
-			if($model->save())
-				$this->redirect(array('view','id'=>$model->id));
+			$user->attributes=$_POST['User'];
+			$save_user=true;
+		}
+		if(isset($_POST['Mailbox']))
+		{
+			$mailbox->attributes=$_POST['Mailbox'];
+			$save_mailbox=true;
 		}
 
-		$this->render('create',array(
-			'model'=>$model,
-		));
+		if($save_user && $save_mailbox)
+		{
+			$transaction=Yii::app()->db->beginTransaction();
+			try
+			{
+				$save=$user->save() && $mailbox->save();
+				// Try to connect first
+				$mailbox->openStorage();
+				if($save)
+				{
+					$transaction->commit();
+					Yii::app()->user->setFlash('global-success', Yii::t('app', 'Mailbox successfully connected'));
+					if($mailbox->type==Mailbox::TypeImap)
+						$this->redirect(array('imapsetting'));
+					else
+						$this->redirect(array('dashboard'));
+				}
+			}
+			catch(Zend_Mail_Exception $e)
+			{
+				$mailbox->addError('_all',Yii::t('app', 'Cannot connect to specified mail server, please recheck your settings. Reason: <blockquote><pre>{reason}</pre></blockquote>', array('{reason}'=>$e->__toString())));
+			}
+			$transaction->rollback();
+		}
+		
+		// Data to be passed to template
+		$data=array(
+			'folders'=>array(),
+			'provider'=>null,
+		);
+		// Is it the first time user got here?
+		if(isset($user->email))
+		{
+			// Get email domain
+			list($localPart,$domainPart)=explode('@',$user->email);
+			$mailDomain=MailDomain::model()->findByPk($domainPart);
+			if ($mailDomain instanceof MailDomain)
+			{
+				$provider=$mailDomain->provider;
+				$mailbox->type=$provider->type;
+				$mailbox->host=$provider->hostname;
+				$mailbox->port=$provider->port;
+				$mailbox->ssl=$provider->ssl;
+				
+				switch($provider->username) 
+				{
+					case MailProvider::PlaceHolderEmailAddress:
+						$mailbox->username=$user->email;
+						break;
+					case MailProvider::PlaceHolderEmailLocalPart:
+					default:
+						$mailbox->username=$localPart;
+						break;
+				}
+				$data['provider']=$provider;
+			}
+		}
+		
+		$data['user']=$user;
+		$data['mailbox']=$mailbox;
+		$data['folders']=array();
+//		$data['hasMailbox']=$hasMailbox;
+		$this->render('create',$data);
 	}
 
 	/**
@@ -56,14 +120,14 @@ class MembersController extends AdminController
 
 		if(isset($_POST['User']))
 		{
-			$model->attributes=$_POST['User'];
-			$model->setScenario('admin_update');
-			if($model->save())
-				$this->redirect(array('view','id'=>$model->id));
+			$user->attributes=$_POST['User'];
+			$user->setScenario('admin_update');
+			if($user->save())
+				$this->redirect(array('view','id'=>$user->id));
 		}
 
 		$this->render('update',array(
-			'model'=>$model,
+			'user'=>$model,
 		));
 	}
 

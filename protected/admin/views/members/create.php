@@ -6,6 +6,6 @@ $this->breadcrumbs=array(
 
 ?>
 
-<h1>Create User</h1>
+<h1>Create User Account</h1>
 
-<?php echo $this->renderPartial('_form', array('model'=>$model)); ?>
+<?php echo $this->renderPartial('_form', array('user'=>$user,'mailbox'=>$mailbox,'folders'=>array())); ?>

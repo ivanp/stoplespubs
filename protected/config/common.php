@@ -8,7 +8,11 @@ return array(
 			'username' => 'stoplespubs',
 			'password' => 'stoplespubs',
 			'charset' => 'utf8',
-		)
+			'autoConnect' => false // only connect when needed
+		),
+		'cache'=>array(
+			'class'=>'system.caching.CFileCache',
+		),
 	),
 	// application-level parameters that can be accessed
 	// using Yii::app()->params['paramName']
