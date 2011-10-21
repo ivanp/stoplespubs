@@ -17,14 +17,14 @@
  * @subpackage Zend_Cache_Frontend
  * @copyright  Copyright (c) 2005-2011 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: File.php 23793 2011-03-02 22:31:05Z mabe $
+ * @version    $Id: File.php 24218 2011-07-10 01:22:58Z ramon $
  */
 
 
 /**
  * @see Zend_Cache_Core
  */
-// require_once 'Zend/Cache/Core.php';
+require_once 'Zend/Cache/Core.php';
 
 
 /**
@@ -123,7 +123,7 @@ class Zend_Cache_Frontend_File extends Zend_Cache_Core
             $this->_masterFile_mtimes[$i] = $mtime;
             $this->_specificOptions['master_files'][$i] = $masterFile;
             if ($i === 0) { // to keep a compatibility
-                $this->_specificOptions['master_files'] = $masterFile;
+                $this->_specificOptions['master_file'] = $masterFile;
             }
 
             $i++;

@@ -18,6 +18,17 @@
 			$this->endWidget();
 		?>
 		</div><!-- sidebar -->
+		<?php foreach ($this->portlets as $portlet): ?>
+		<div id="sidebar">
+		<?php
+			$this->beginWidget('zii.widgets.CPortlet', array(
+				'title'=>$portlet['title'],
+			));
+			echo $portlet['content'];
+			$this->endWidget();
+		?>
+		</div><!-- sidebar -->
+		<?php endforeach; ?>
 	</div>
 </div>
 <?php $this->endContent(); ?>

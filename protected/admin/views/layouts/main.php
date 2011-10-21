@@ -46,6 +46,22 @@ $isGuest=Yii::app()->user->isGuest;
 		)); ?><!-- breadcrumbs -->
 	<?php endif?>
 
+	<?php if(Yii::app()->user->hasFlash('global-error')):?>
+    <div class="flash-error">
+        <?php echo Yii::app()->user->getFlash('global-error'); ?>
+    </div>
+	<?php endif; ?>
+	<?php if(Yii::app()->user->hasFlash('global-notice')):?>
+    <div class="flash-notice">
+        <?php echo Yii::app()->user->getFlash('global-notice'); ?>
+    </div>
+	<?php endif; ?>
+	<?php if(Yii::app()->user->hasFlash('global-success')):?>
+    <div class="flash-success">
+        <?php echo Yii::app()->user->getFlash('global-success'); ?>
+    </div>
+	<?php endif; ?>
+		
 	<?php echo $content; ?>
 
 	<div id="footer">

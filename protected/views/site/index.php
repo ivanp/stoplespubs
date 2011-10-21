@@ -1,16 +1,67 @@
-<?php $this->pageTitle=Yii::app()->name; ?>
+<?php 
+$this->pageTitle=Yii::app()->name; 
 
-<h1>Welcome to <i><?php echo CHtml::encode(Yii::app()->name); ?></i></h1>
+if (Yii::app()->user->isGuest)
+{
+	$this->portlets[] = array(
+		'title' => 'Login',
+		'content' => $this->renderPartial('portlets/login', array('model'=>$model_login), true)
+	);
+}
+?>
 
-<p>Congratulations! You have successfully created your Yii application.</p>
+<h1>Signup to <i><?php echo CHtml::encode(Yii::app()->name); ?></i></h1>
 
-<p>You may change the content of this page by modifying the following two files:</p>
-<ul>
-	<li>View file: <tt><?php echo __FILE__; ?></tt></li>
-	<li>Layout file: <tt><?php echo $this->getLayoutFile('main'); ?></tt></li>
-</ul>
+<div class="form">
 
-<p>For more details on how to further develop this application, please read
-the <a href="http://www.yiiframework.com/doc/">documentation</a>.
-Feel free to ask in the <a href="http://www.yiiframework.com/forum/">forum</a>,
-should you have any questions.</p>
+<?php $form=$this->beginWidget('CActiveForm', array(
+	'id'=>'register-form',
+	'enableAjaxValidation'=>false,
+	'enableClientValidation'=>true,
+	'clientOptions'=>array(
+		'validateOnSubmit'=>true,
+	)
+));
+if ($form instanceof CActiveForm);
+?>
+
+	<p class="note">Fields with <span class="required">*</span> are required.</p>
+
+	<?php echo $form->errorSummary($model_register); ?>
+
+	<div class="row">
+		<?php echo $form->labelEx($model_register,'email'); ?>
+		<?php echo $form->textField($model_register,'email',array('size'=>40,'maxlength'=>255)); ?>
+		<?php echo $form->error($model_register,'email'); ?>
+	</div>
+	
+	<div class="row">
+		<?php echo $form->labelEx($model_register,'password_entered'); ?>
+		<?php echo $form->passwordField($model_register,'password_entered',array('size'=>40,'maxlength'=>255)); ?>
+		<?php echo $form->error($model_register,'password_entered'); ?>
+	</div>
+	
+	<div class="row">
+		<?php echo $form->labelEx($model_register,'firstname'); ?>
+		<?php echo $form->textField($model_register,'firstname',array('size'=>40,'maxlength'=>80)); ?>
+		<?php echo $form->error($model_register,'firstname'); ?>
+	</div>
+
+	<div class="row">
+		<?php echo $form->labelEx($model_register,'lastname'); ?>
+		<?php echo $form->textField($model_register,'lastname',array('size'=>40,'maxlength'=>80)); ?>
+		<?php echo $form->error($model_register,'lastname'); ?>
+	</div>
+	
+	<div class="row">
+		<?php echo $form->checkBox($model_register,'is_accept_cos',array('uncheckValue'=>'0','value'=>'1')); ?> <?php echo $form->labelEx($model_register,'is_accept_cos',array('style'=>'display: inline')); ?>
+		<?php echo $form->error($model_register,'is_accept_cos'); ?>
+	</div>
+	
+	<div class="row buttons">
+		<?php echo CHtml::submitButton('Sign Up'); ?>
+	</div>
+
+<?php $this->endWidget(); ?>
+
+</div><!-- form -->

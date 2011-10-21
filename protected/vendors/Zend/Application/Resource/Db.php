@@ -17,13 +17,13 @@
  * @subpackage Resource
  * @copyright  Copyright (c) 2005-2011 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: Db.php 23775 2011-03-01 17:25:24Z ralph $
+ * @version    $Id: Db.php 24297 2011-07-29 00:11:25Z adamlundrigan $
  */
 
 /**
  * @see Zend_Application_Resource_ResourceAbstract
  */
-// require_once 'Zend/Application/Resource/ResourceAbstract.php';
+require_once 'Zend/Application/Resource/ResourceAbstract.php';
 
 /**
  * Resource for creating database adapter
@@ -45,7 +45,7 @@ class Zend_Application_Resource_Db extends Zend_Application_Resource_ResourceAbs
     protected $_adapter = null;
 
     /**
-     * @var Zend_Db_Adapter_Interface
+     * @var Zend_Db_Adapter_Abstract
      */
     protected $_db;
 
@@ -132,7 +132,7 @@ class Zend_Application_Resource_Db extends Zend_Application_Resource_ResourceAbs
     /**
      * Retrieve initialized DB connection
      *
-     * @return null|Zend_Db_Adapter_Interface
+     * @return null|Zend_Db_Adapter_Abstract
      */
     public function getDbAdapter()
     {
