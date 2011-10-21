@@ -1,28 +1,168 @@
 <?php
 
+class ProcessObject
+{
+	public $pid;
+	public $socket;
+	
+}
+
 class DaemonCommand extends CConsoleCommand
 {
-	private $mailbox_id;
+	private $user_id;
+	/**
+	 * @var User
+	 */
+	private $user;
 	/**
 	 * @var Mailbox
 	 */
 	private $mailbox;
 	
+	const ManagerMaxProcess=100;
+	
 	// In seconds
-	const ImapPoolEvery=10;
-	const Pop3PoolEvery=10;
+	const ImapPoolEvery=60;
+	const Pop3PoolEvery=60;
 	const ReconnectSpare=5;
+	
+	const IntervalSpare=5;
+	private $intervals=array(60,120,180,240,300);
+	private $current_interval=60;
+	
+	private $socket;
 	
 	const MaxProcessAtATime=100;
 	
-	public function actionIndex($mailbox_id)
+	/**
+	 * @var EProcessManager
+	 */
+	private $manager;
+	
+	public function processCheckUsers($users)
 	{
-		$this->mailbox_id=$mailbox_id;
+		foreach($users as $user)
+		{
+			if($user instanceof User);
+			$process=$this->manager->getProcess($user->id);
+			if(!($process instanceof EProcess))
+			{
+				// create new process
+				$process=new EProcess();
+			}
+			$process->checkHeartBeat();
+		}
+	}
+	
+	public function actionindex()
+	{
+		echo "Preparing SQL";
+		$t1=microtime(true);
+		// Use direct PDO connection to save resources
+		$connection=Yii::app()->db;
+		$command=$connection->createCommand('SELECT id FROM user WHERE activeto > :now');
+		$command->bindParam(':now',$t_start,PDO::PARAM_INT);
+		$t2=microtime(true);
+		echo sprintf(", done in %.5f seconds\n",$t2-$t1);
+		
+		$manager=EProcessManager::getInstance();
+		register_tick_function(array($manager,'ping'));
+		declare(ticks=1);
+		
+		$prev_user_ids=array();
+		// Main loop
+		while(true)
+		{
+			$t_start=time();
+			$user_ids=$command->queryAll(false);
+			$current_user_ids=array();
+			if (is_array($user_ids))
+			{
+				foreach($user_ids as $row)
+				{
+					$user_id=$row[0];
+					if(isset($prev_user_ids[$user_id]))
+						unset($prev_user_ids[$user_id]);
+					else
+						$manager->add($user_id, array($this,'runUser'), array($user_id));
+					$current_user_ids[$user_id]=$user_id;
+				}
+			}
+			
+			// Deleted/disabled users
+			if(count($prev_user_ids))
+			{
+				foreach($prev_user_ids as $user_id)
+					$manager->kill($user_id);
+			}
+			
+			$prev_user_ids=$current_user_ids;
+			
+			// ping all process
+//			$manager->ping();
+			
+			$sleep_until=strtotime('+'.$this->current_interval.' second', $t_start);
+			if ($sleep_until>time()+self::IntervalSpare) {
+				printf("Sleeping for %d seconds\n", $sleep_until-time());
+				while(time()<$sleep_until) {
+					sleep(5);
+				}
+				//@time_sleep_until($sleep_until);
+				$this->_decIntervals();
+			} else {
+				echo "Cannot sleep, we are running out of time\n";
+				$this->_incIntervals();
+			}
+		}
+	}
+	
+	private function _incIntervals()
+	{
+		$max_interval=end($this->intervals);
+		// already at max?
+		if ($this->current_interval==$max_interval)
+			return;
+		$key=array_search($this->current_interval,$this->intervals);
+		if($key===false) //something's wrong :(
+		{
+			// set to max interval
+			$this->current_interval=$max_interval;
+			return;
+		}
+		$this->current_interval=$this->intervals[++$key];
+	}
+	
+	private function _decIntervals()
+	{
+		$min_interval=reset($this->intervals);
+		if($this->current_interval==$min_interval)
+			return;
+		$key=array_search($this->current_interval,$this->intervals);
+		if($key===false)
+		{
+			$this->current_interval=$min_interval;
+			return;
+		}
+		$this->current_interval=$this->intervals[--$key];
+	}
+	
+	public function runUser($user_id)
+	{
+		// Close connection
+		Yii::app()->db->setActive(false);
+		
+		$this->user_id=$user_id;
 		$this->refreshMailbox();
 		
 		$this->mailbox->pid = posix_getpid();
 		$this->mailbox->save();
-		echo sprintf("Opening mailbox [%s]\n", $this->mailbox->email);
+		echo sprintf("Opening mailbox [%s]\n", $this->user->email);
+		
+//		if(!$this->mailbox->active)
+//		{
+//			echo "Mailbox inactive\n";
+//			return;
+//		}
 		
 		switch ($this->mailbox->type)
 		{
@@ -40,7 +180,10 @@ class DaemonCommand extends CConsoleCommand
 	
 	private function refreshMailbox()
 	{
-		$this->mailbox=Mailbox::model()->findByPk($this->mailbox_id);
+		$this->user=User::model()->findByPk($this->user_id);
+		if(!($this->user instanceof User))
+			throw new CHttpException(404, "User not found");
+		$this->mailbox=$this->user->mailbox;
 		if (!($this->mailbox instanceof Mailbox))
 			throw new CHttpException(404, "Mailbox not found");
 	}
@@ -58,7 +201,7 @@ class DaemonCommand extends CConsoleCommand
 			case 'tls':
 				$ssl='TLS';
 				break;
-			default:
+			default: 
 				$ssl=false;
 		}
 		// Main loop
@@ -73,7 +216,7 @@ class DaemonCommand extends CConsoleCommand
 			$mail=new EZend_Mail_Storage_Pop3(array(
 				'host'=>$this->mailbox->host,
 				'user'=>$this->mailbox->username,
-				'password'=>$this->mailbox->user->decrypt(),
+				'password'=>$this->user->decrypt(),
 				'ssl'=>$ssl
 			));
 			// Mark start time
@@ -122,9 +265,11 @@ class DaemonCommand extends CConsoleCommand
 				}
 			}
 			// Delete emails
-			foreach ($delete_nums as $num => $subject) {
+			foreach ($delete_nums as $num => $subject) 
+			{
 				echo sprintf("Removing message %s [%s]\n", $num, $subject);
 				$mail->removeMessage($num);
+				
 			}
 			// Close connection
 			$mail->close();
@@ -147,11 +292,22 @@ class DaemonCommand extends CConsoleCommand
 			unset($mail);
 			
 			// Sleep a little while
-			$sleep_until=strtotime('+'.$how_long.' second', $start);
-			if ($sleep_until<=time()+self::ReconnectSpare)
-				$sleep_until=time()+self::Pop3PoolEvery;
-			echo sprintf("Sleeping until %s\n", date('Y-m-d H:i:s', $sleep_until));
-			time_sleep_until($sleep_until);
+			$sleep_until=strtotime('+'.self::Pop3PoolEvery.' second', $t_start);
+			if ($sleep_until>time()+self::ReconnectSpare) {
+				printf("Sleeping for %d seconds\n", $sleep_until-time());
+//				@time_sleep_until($sleep_until);
+				while(time()<$sleep_until) {
+					sleep(1);
+				}
+			} else {
+				echo "Cannot sleep, we are running out of time\n";
+			}
+			
+//			$sleep_until=strtotime('+'.$how_long.' second', $start);
+//			if ($sleep_until<=time()+self::ReconnectSpare)
+//				$sleep_until=time()+self::Pop3PoolEvery;
+//			echo sprintf("Sleeping until %s\n", date('Y-m-d H:i:s', $sleep_until));
+//			time_sleep_until($sleep_until);
 		}
 	}
 	
@@ -170,7 +326,7 @@ class DaemonCommand extends CConsoleCommand
 		$mail=new EZend_Mail_Storage_Imap(array(
 			'host'=>$this->mailbox->host,
 			'user'=>$this->mailbox->username,
-			'password'=>$this->mailbox->user->password,
+			'password'=>$this->user->decrypt(),
 			'ssl'=>$ssl
 		));
 		
@@ -315,7 +471,10 @@ class DaemonCommand extends CConsoleCommand
 			$sleep_until=strtotime('+'.self::ImapPoolEvery.' second', $t_start);
 			if ($sleep_until>time()+self::ReconnectSpare) {
 				printf("Sleeping for %d seconds\n", $sleep_until-time());
-				@time_sleep_until($sleep_until);
+//				@time_sleep_until($sleep_until);
+				while(time()<$sleep_until) {
+					sleep(1);
+				}
 			} else {
 				echo "Cannot sleep, we are running out of time\n";
 			}
