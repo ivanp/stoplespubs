@@ -113,6 +113,10 @@ class SiteController extends Controller
 			try
 			{
 				$register->attributes=$_POST['User'];
+				// Trial codes start
+				$register->activeto=strtotime('+15 days');
+				$register->billstatus=User::BillStatusTrial;
+				// Trial codes end
 				if($register->save())
 				{
 					$identity=new UserIdentity($register->email,$register->password_entered);
@@ -354,29 +358,51 @@ class SiteController extends Controller
 		$expiry1=strtotime('-1 day');
 		$expiry2=strtotime('-1 month');
 		
-		if($user->activeto===null)
+		if($user instanceof User);
+		
+		switch($user->billstatus)
 		{
-			$status=Yii::t('app', '<strong>Unpaid</strong>');
-			$pay_msg=Yii::t('app', 'Click here to pay');
-		}
-		elseif($user->activeto < $expiry2)
-		{
-			$dt=Zend_Date::now();
-			$dt->sub($expiry2, Zend_Date::TIMESTAMP);
-			$days=$dt->get(Zend_Date::DAY);
-			$status=Yii::t('app', '<strong>Expiring</strong> in {days} days', array('{days}'=>$days));
-			$pay_msg=Yii::t('app', 'Click here to extend your subscription');
-		}
-		elseif($user->activeto < $expiry1)
-		{
-			$dt=Zend_Date($user->activeto);
-			$status=Yii::t('app', '<strong>Expired</strong> on {date}', array('{date}'=>$dt->get(Zend_Date::DATE_FULL)));
-			$pay_msg=Yii::t('app', 'Click here to extend your subscription');
-		}
-		else
-		{
-			$status=Yii::t('app', '<strong>Paid</strong>');
-			$pay_msg=Yii::t('app', 'Click here to extend your subscription');
+			case User::BillStatusInactive:
+				$status=Yii::t('app', '<strong>Inactive</strong>');
+				$pay_msg=Yii::t('app', 'Click here to pay');
+				break;
+			case User::BillStatusPaid:
+				if($user->activeto===null || $user->activeto < $expiry1)
+				{
+					$status=Yii::t('app', '<strong>Inactive</strong>');
+					$pay_msg=Yii::t('app', 'Click here to pay');
+				}
+				elseif($user->activeto > $expiry2 && $user->activeto < $expiry1)
+				{
+					$dt=Zend_Date::now();
+					$dt->sub($expiry2, Zend_Date::TIMESTAMP);
+					$days=$dt->get(Zend_Date::DAY);
+					$status=Yii::t('app', '<strong>Paid</strong> Expiring in {days} days', array('{days}'=>$days));
+					$pay_msg=Yii::t('app', 'Click here to extend your subscription');
+				}
+				else
+				{
+					$status=Yii::t('app', '<strong>Paid</strong>');
+					$pay_msg=Yii::t('app', 'Click here to extend your subscription');
+				}
+				break;
+			case User::BillStatusTrial:
+				if($user->activeto===null || $user->activeto < $expiry1)
+				{
+					$status=Yii::t('app', '<strong>Inactive</strong> (expired trial)');
+					$pay_msg=Yii::t('app', 'Click here to pay');
+				}
+				else
+				{
+					$dt=new Zend_Date($user->activeto, Zend_Date::TIMESTAMP);
+					$dt->sub(Zend_Date::now());
+					// Doesn't count today
+					$dt->sub(1,Zend_Date::DAY);
+					$days=$dt->get(Zend_Date::DAY);
+					$status=Yii::t('app', '<strong>Trial</strong> {days} days left', array('{days}'=>$days));
+					$pay_msg=Yii::t('app', 'Click here to pay subscription');
+				}
+				break;
 		}
 		
 		$data=array(

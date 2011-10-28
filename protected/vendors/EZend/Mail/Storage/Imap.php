@@ -29,6 +29,6 @@ class EZend_Mail_Storage_Imap extends Zend_Mail_Storage_Imap
 		if (!$this->_protocol->store(array(Zend_Mail_Storage::FLAG_DELETED), $id, null, '+')) {
 			throw new Zend_Mail_Storage_Exception('cannot set deleted flag');
 		}
-		$this->copyMessage($id, $folder);
+		$this->moveMessage($id, $folder);
 	}
 }

@@ -32,7 +32,7 @@ class DaemonCommand extends CConsoleCommand
 	
 	private $socket;
 	
-	const MaxProcessAtATime=100;
+	const MaxProcessAtATime=1000;
 	
 	/**
 	 * @var EProcessManager

@@ -12,13 +12,18 @@
  * @property string $updated
  * @property string $created
  * @property string $lastlogin
- * @property string $level
+ * @property int $activeto
+ * @property string $billstatus
  *
  * The followings are the available model relations:
  * @property Mailbox[] $mailboxes
  */
 class User extends CActiveRecord
 {
+	const BillStatusInactive='inactive';
+	const BillStatusTrial='trial';
+	const BillStatusPaid='paid';
+	
 	public $password_entered;
 	public $password_repeat;
 //	public $is_password_modified=false;
