@@ -60,7 +60,7 @@ class DaemonCommand extends CConsoleCommand
 		$t1=microtime(true);
 		// Use direct PDO connection to save resources
 		$connection=Yii::app()->db;
-		$command=$connection->createCommand('SELECT id FROM user WHERE activeto > :now');
+		$command=$connection->createCommand('SELECT t1.id FROM user t1 JOIN mailbox t2 ON t1.id = t2.user_id WHERE t1.activeto > :now');
 		$command->bindParam(':now',$t_start,PDO::PARAM_INT);
 		$t2=microtime(true);
 		echo sprintf(", done in %.5f seconds\n",$t2-$t1);
@@ -74,7 +74,20 @@ class DaemonCommand extends CConsoleCommand
 		while(true)
 		{
 			$t_start=time();
-			$user_ids=$command->queryAll(false);
+			// Restart connection, prevent "MySQL server has gone away" errors
+			$connection->setActive(true);
+			try
+			{
+				$user_ids=$command->queryAll(false);
+			}
+			catch(CDbException $e)
+			{
+				// mysql has been away?
+				$connection->setActive(false);
+				continue;
+			}
+			// Let's close connection before forking childs
+			$connection->setActive(false);
 			$current_user_ids=array();
 			if (is_array($user_ids))
 			{
@@ -148,8 +161,9 @@ class DaemonCommand extends CConsoleCommand
 	
 	public function runUser($user_id)
 	{
-		// Close connection
 		Yii::app()->db->setActive(false);
+		Yii::app()->db->setPersistent(true);
+		Yii::app()->db->setActive(true);
 		
 		$this->user_id=$user_id;
 		$this->refreshMailbox();
@@ -186,10 +200,6 @@ class DaemonCommand extends CConsoleCommand
 		$this->mailbox=$this->user->mailbox;
 		if (!($this->mailbox instanceof Mailbox))
 			throw new CHttpException(404, "Mailbox not found");
-	}
-	
-	private function deleteMessage(Zend_Mail_Storage_Abstract $storage, Zend_Mail_Message $mail) {
-		static $buffer;
 	}
 	
 	private function startPop()
@@ -234,7 +244,7 @@ class DaemonCommand extends CConsoleCommand
 				$message=MessagePop3::model()->find('mailbox_id=:mailbox_id and message_id=:message_id',array(':mailbox_id'=>$this->mailbox->id,':message_id'=>$id));
 				if ($message instanceof MessagePop3)
 				{
-					echo sprintf("Message [%s] already processed, skipped\n", $message->message_id);
+//					echo sprintf("Message [%s] already processed, skipped\n", $message->message_id);
 					$update_ids[]=$id;
 					unset($message);
 					continue; // already processed, skip it
@@ -249,7 +259,7 @@ class DaemonCommand extends CConsoleCommand
 					{
 						echo sprintf("Message [%s] have banned headers (%s), will be deleted\n", $msg->subject, join(',', $intersects));
 						// Mark email to be deleted
-						$delete_nums[$num]=$msg->subject;
+						$delete_nums[$num]=$msg;
 					}
 					else
 					{
@@ -265,25 +275,29 @@ class DaemonCommand extends CConsoleCommand
 				}
 			}
 			// Delete emails
-			foreach ($delete_nums as $num => $subject) 
+			if(count($delete_nums))
 			{
-				echo sprintf("Removing message %s [%s]\n", $num, $subject);
-				$mail->removeMessage($num);
-				
+				foreach ($delete_nums as $num => $msg) 
+				{
+					$this->deleteMessage($msg);
+					echo sprintf("Removing message %s [%s]\n", $num, $msg->subject);
+					$mail->removeMessage($num);
+				}
 			}
+				
 			// Close connection
 			$mail->close();
 			// "Touch" existing emails
 			$db=Yii::app()->db;
 			$cmd=$db->createCommand('REPLACE INTO '.MessagePop3::model()->tableName().' (mailbox_id, message_id, last_touch) VALUES (:mailbox_id, :message_id, :last_touch)');
 			$cmd->bindValue(':mailbox_id', $this->mailbox->id);
-			$cmd->bindParam(':message_id', $msg_id);
 			$cmd->bindValue(':last_touch', time());
 			echo "Updating last touch\n";
 			$t1=microtime(true);
 			$trans=$db->beginTransaction();
 			foreach ($update_ids as $msg_id)
 			{
+				$cmd->bindValue(':message_id', $msg_id);
 				$cmd->execute();
 			}
 			$trans->commit();
@@ -372,7 +386,7 @@ class DaemonCommand extends CConsoleCommand
 					$id=(int)$id; // it's an integer
 					if (MessageImap::model()->count('mailbox_id=:mailbox_id and message_id=:message_id',array(':mailbox_id'=>$this->mailbox->id,':message_id'=>$id)))
 					{
-						echo sprintf("Message [%d] already processed, skipped\n", $id);
+//						echo sprintf("Message [%d] already processed, skipped\n", $id);
 						$update_ids[]=$id;
 						continue; // already processed, skip it
 					}
@@ -390,7 +404,7 @@ class DaemonCommand extends CConsoleCommand
 							{
 								echo sprintf("Message [%s] have banned headers (%s), will be deleted\n", $subject, join(',', $intersects));
 								// Mark email to be deleted
-								$delete_nums[$num]=$subject;
+								$delete_nums[$num]=$msg;
 							}
 							else
 							{
@@ -420,17 +434,21 @@ class DaemonCommand extends CConsoleCommand
 			{
 				switch ($this->mailbox->imap_action) {
 					case Mailbox::ImapActionMove :
-						foreach ($delete_nums as $num => $subject) {
-							echo sprintf("Moving message %s [%s] to %s\n", $num, $subject, $this->mailbox->imap_move_folder);
+						foreach ($delete_nums as $num => $msg) 
+						{
+							$this->deleteMessage($msg);
+							echo sprintf("Moving message %s [%s] to %s\n", $num, $msg->subject, $this->mailbox->imap_move_folder);
 							//$mail->moveMessage($num, $this->mailbox->imap_move_folder);
 							$mail->moveMsgExt($num, $this->mailbox->imap_move_folder);
 						}
 						break;
 					case Mailbox::ImapActionMark :
 					case Mailbox::ImapActionDelete :
-						foreach ($delete_nums as $num => $subject) {
-							echo sprintf("Marking message %s [%s]\n", $num, $subject);
-		//					$mail->removeMessage($num);
+						foreach ($delete_nums as $num => $msg) 
+						{
+							$this->deleteMessage($msg);
+							echo sprintf("Marking message %s [%s]\n", $num, $msg->subject);
+							$mail->removeMessage($num);
 							try {
 								$mail->setFlags($num, array(Zend_Mail_Storage::FLAG_DELETED));
 							} catch (Zend_Mail_Protocol_Exception $e) {
@@ -493,6 +511,14 @@ class DaemonCommand extends CConsoleCommand
 //				var_dump($recent);
 //			}
 		}
-			
+	}
+	
+	private function deleteMessage(Zend_Mail_Message $message)
+	{
+		$cmd=Yii::app()->db->createCommand('INSERT INTO '.MailDelete::model()->tableName().' (user_id, time, `from`) VALUES (:user_id, :time, :from)');
+		$cmd->bindValue(':user_id',$this->user_id,PDO::PARAM_INT);
+		$cmd->bindValue(':time',time(),PDO::PARAM_INT);
+		$cmd->bindValue(':from',$message->from,PDO::PARAM_STR);
+		$cmd->execute();
 	}
 }
