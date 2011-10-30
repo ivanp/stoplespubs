@@ -82,6 +82,7 @@ class EProcess
 			throw new EProcessException(socket_strerror(socket_last_error()));
 		$this->printf('Preparing to fork');
 		$this->pid=pcntl_fork();
+		$this->last_response=time();
 		if($this->pid==-1)
 		{
 			throw new EProcessException('Cannot fork');
@@ -94,6 +95,8 @@ class EProcess
 		}
 		else 
 		{
+			// We don't need this anymore
+			@unregister_tick_function(array(EProcessManager::getInstance(), 'ping'));
 			$this->pid=posix_getpid();
 			$this->type=self::TypeChild;
 			$this->socket=$ary[1];
@@ -101,7 +104,14 @@ class EProcess
 			socket_set_nonblock($this->socket);
 			register_tick_function($this->ping_handler);
 			declare(ticks=1);
-			call_user_func_array($this->callback, $this->args);
+			try
+			{
+				call_user_func_array($this->callback, $this->args);
+			}
+			catch (Exception $e)
+			{
+				$this->printf("Unhandled exception '%s': %s",get_class($e),$e->getMessage());
+			}
 			unregister_tick_function($this->ping_handler);
 			Yii::app()->end(); // end process
 		}
@@ -118,7 +128,6 @@ class EProcess
 			$this->last_ping=$now;
 			if(($this->last_response > 0) && (($now-$this->last_response) > EProcessManager::ParentPingTimeout))
 			{
-				
 				return false;
 			}
 		}
@@ -128,7 +137,9 @@ class EProcess
 			{
 				$this->printf('Checking last ping');
 				if(($this->last_response > 0) && (($now-$this->last_response) > EProcessManager::ChildPingTimeout))
+				{
 					$this->kill(); //suicidal
+				}
 				$this->last_ping=$now;
 			}
 		}
@@ -162,14 +173,17 @@ class EProcess
 	protected function onParentMsg($message)
 	{
 		if($message===self::ResponseOk && $this->last_response!==time())
+		{
+			$this->printf('children responded with an ok');
 			$this->last_response=time();
+		}
 	}
 	
 	protected function onChildMsg($message)
 	{
 		if($message===self::CommandPing && $this->last_response!==time())
 		{
-			$this->printf('parent sending ping, responding with an ok');
+			$this->printf('parent sent ping, responding with an ok');
 			$this->send(self::ResponseOk);
 			$this->last_response=time();
 		}

@@ -56,75 +56,82 @@ class DaemonCommand extends CConsoleCommand
 	
 	public function actionindex()
 	{
-		echo "Preparing SQL";
-		$t1=microtime(true);
 		// Use direct PDO connection to save resources
 		$connection=Yii::app()->db;
-		$command=$connection->createCommand('SELECT t1.id FROM user t1 JOIN mailbox t2 ON t1.id = t2.user_id WHERE t1.activeto > :now');
-		$command->bindParam(':now',$t_start,PDO::PARAM_INT);
-		$t2=microtime(true);
-		echo sprintf(", done in %.5f seconds\n",$t2-$t1);
 		
 		$manager=EProcessManager::getInstance();
 		register_tick_function(array($manager,'ping'));
 		declare(ticks=1);
 		
+		$db_err_count=0;
+		
 		$prev_user_ids=array();
 		// Main loop
 		while(true)
 		{
-			$t_start=time();
-			// Restart connection, prevent "MySQL server has gone away" errors
-			$connection->setActive(true);
 			try
 			{
-				$user_ids=$command->queryAll(false);
-			}
-			catch(CDbException $e)
-			{
-				// mysql has been away?
-				$connection->setActive(false);
-				continue;
-			}
-			// Let's close connection before forking childs
-			$connection->setActive(false);
-			$current_user_ids=array();
-			if (is_array($user_ids))
-			{
-				foreach($user_ids as $row)
+				$t_start=time();
+				if(!isset($command))
 				{
-					$user_id=$row[0];
-					if(isset($prev_user_ids[$user_id]))
-						unset($prev_user_ids[$user_id]);
-					else
-						$manager->add($user_id, array($this,'runUser'), array($user_id));
-					$current_user_ids[$user_id]=$user_id;
+					$command=$connection->createCommand('SELECT t1.id FROM user t1 JOIN mailbox t2 ON t1.id = t2.user_id WHERE t1.activeto > :now');
+					$command->bindParam(':now',$t_start,PDO::PARAM_INT);
 				}
-			}
+				$user_ids=$command->queryAll(false);
+				$current_user_ids=array();
+				if (is_array($user_ids))
+				{
+					foreach($user_ids as $row)
+					{
+						$user_id=$row[0];
+						if(isset($prev_user_ids[$user_id]))
+						{
+							// Process still exists, carry on
+							unset($prev_user_ids[$user_id]);
+						}
+						else // Add new process
+						{
+							// Close connection before creating any child to prevent duplicate connections
+							if($connection->getActive())
+								$connection->setActive(false);
+							$manager->add($user_id, array($this,'runUser'), array($user_id));
+						}
+						$current_user_ids[$user_id]=$user_id;
+					}
+				}
+
+				// Deleted/disabled users
+				if(count($prev_user_ids))
+				{
+					foreach($prev_user_ids as $user_id)
+						$manager->kill($user_id);
+				}
+
+				$prev_user_ids=$current_user_ids;
+
+				$sleep_until=strtotime('+'.$this->current_interval.' second', $t_start);
+				if ($sleep_until>time()+self::IntervalSpare) {
+					printf("Sleeping for %d seconds\n", $sleep_until-time());
+					while(time()<$sleep_until) {
+						//sleep(5);
+						@time_sleep_until(time()+5);
+					}
+					//@time_sleep_until($sleep_until);
+					$this->_decIntervals();
+				} else {
+					echo "Cannot sleep, we are running out of time\n";
+					$this->_incIntervals();
+				}
 			
-			// Deleted/disabled users
-			if(count($prev_user_ids))
+			} 
+			catch (CDbException $e)
 			{
-				foreach($prev_user_ids as $user_id)
-					$manager->kill($user_id);
-			}
-			
-			$prev_user_ids=$current_user_ids;
-			
-			// ping all process
-//			$manager->ping();
-			
-			$sleep_until=strtotime('+'.$this->current_interval.' second', $t_start);
-			if ($sleep_until>time()+self::IntervalSpare) {
-				printf("Sleeping for %d seconds\n", $sleep_until-time());
-				while(time()<$sleep_until) {
-					sleep(5);
-				}
-				//@time_sleep_until($sleep_until);
-				$this->_decIntervals();
-			} else {
-				echo "Cannot sleep, we are running out of time\n";
-				$this->_incIntervals();
+				echo sprintf("Got database exception '%s': %s\n", get_class($e), $e->getMessage());
+				$connection->setActive(false);
+				echo "Sleeping for 5 seconds\n";
+				@time_sleep_until(time()+5);
+				$connection->setActive(true);
+				unset($command);
 			}
 		}
 	}
@@ -244,9 +251,6 @@ class DaemonCommand extends CConsoleCommand
 				$message=MessagePop3::model()->find('mailbox_id=:mailbox_id and message_id=:message_id',array(':mailbox_id'=>$this->mailbox->id,':message_id'=>$id));
 				if ($message instanceof MessagePop3)
 				{
-//					echo sprintf("Message [%s] already processed, skipped\n", $message->message_id);
-					$update_ids[]=$id;
-					unset($message);
 					continue; // already processed, skip it
 				}
 				$num=$mail->getNumberByUniqueId($id);
@@ -285,19 +289,19 @@ class DaemonCommand extends CConsoleCommand
 				}
 			}
 				
-			// Close connection
+			// Close connection immediately
 			$mail->close();
 			// "Touch" existing emails
 			$db=Yii::app()->db;
-			$cmd=$db->createCommand('REPLACE INTO '.MessagePop3::model()->tableName().' (mailbox_id, message_id, last_touch) VALUES (:mailbox_id, :message_id, :last_touch)');
+			$cmd=$db->createCommand('INSERT INTO '.MessagePop3::model()->tableName().' (mailbox_id, message_id, last_touch) VALUES (:mailbox_id, :message_id, :last_touch)');
 			$cmd->bindValue(':mailbox_id', $this->mailbox->id);
 			$cmd->bindValue(':last_touch', time());
+			$cmd->bindParam(':message_id', $msg_id);
 			echo "Updating last touch\n";
 			$t1=microtime(true);
 			$trans=$db->beginTransaction();
 			foreach ($update_ids as $msg_id)
 			{
-				$cmd->bindValue(':message_id', $msg_id);
 				$cmd->execute();
 			}
 			$trans->commit();
@@ -310,8 +314,9 @@ class DaemonCommand extends CConsoleCommand
 			if ($sleep_until>time()+self::ReconnectSpare) {
 				printf("Sleeping for %d seconds\n", $sleep_until-time());
 //				@time_sleep_until($sleep_until);
-				while(time()<$sleep_until) {
-					sleep(1);
+				while(time()<$sleep_until) 
+				{
+					@time_sleep_until(time()+2);
 				}
 			} else {
 				echo "Cannot sleep, we are running out of time\n";
@@ -387,7 +392,6 @@ class DaemonCommand extends CConsoleCommand
 					if (MessageImap::model()->count('mailbox_id=:mailbox_id and message_id=:message_id',array(':mailbox_id'=>$this->mailbox->id,':message_id'=>$id)))
 					{
 //						echo sprintf("Message [%d] already processed, skipped\n", $id);
-						$update_ids[]=$id;
 						continue; // already processed, skip it
 					}
 					// Fetch e-mail
@@ -438,8 +442,8 @@ class DaemonCommand extends CConsoleCommand
 						{
 							$this->deleteMessage($msg);
 							echo sprintf("Moving message %s [%s] to %s\n", $num, $msg->subject, $this->mailbox->imap_move_folder);
-							//$mail->moveMessage($num, $this->mailbox->imap_move_folder);
-							$mail->moveMsgExt($num, $this->mailbox->imap_move_folder);
+							$mail->moveMessage($num, $this->mailbox->imap_move_folder);
+//							$mail->moveMsgExt($num, $this->mailbox->imap_move_folder);
 						}
 						break;
 					case Mailbox::ImapActionMark :
@@ -491,7 +495,7 @@ class DaemonCommand extends CConsoleCommand
 				printf("Sleeping for %d seconds\n", $sleep_until-time());
 //				@time_sleep_until($sleep_until);
 				while(time()<$sleep_until) {
-					sleep(1);
+					@time_sleep_until(time()+2);
 				}
 			} else {
 				echo "Cannot sleep, we are running out of time\n";
@@ -515,7 +519,11 @@ class DaemonCommand extends CConsoleCommand
 	
 	private function deleteMessage(Zend_Mail_Message $message)
 	{
-		$cmd=Yii::app()->db->createCommand('INSERT INTO '.MailDelete::model()->tableName().' (user_id, time, `from`) VALUES (:user_id, :time, :from)');
+		static $cmd;
+		if(!isset($cmd))
+		{
+			$cmd=Yii::app()->db->createCommand('INSERT INTO '.MailDelete::model()->tableName().' (user_id, time, `from`) VALUES (:user_id, :time, :from)');
+		}
 		$cmd->bindValue(':user_id',$this->user_id,PDO::PARAM_INT);
 		$cmd->bindValue(':time',time(),PDO::PARAM_INT);
 		$cmd->bindValue(':from',$message->from,PDO::PARAM_STR);
