@@ -7,6 +7,7 @@ $this->breadcrumbs=array(
 
 $this->menu=array(
 	array('label'=>'Mailbox Settings', 'url'=>array('mailbox')),
+	array('label'=>'Report', 'url'=>array('/report')),
 );
 
 ?>
