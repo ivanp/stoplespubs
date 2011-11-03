@@ -28,6 +28,8 @@ class ReportController extends Controller
 	
 	public function actionIndex()
 	{
+		$user=Yii::app()->user->getModel();
+		
 		$months=array();
 		$now=Zend_Date::now();
 		$total=0;
@@ -44,7 +46,7 @@ class ReportController extends Controller
 			if($t2 instanceof Zend_Date);
 			$t2->subSecond(1);
 			
-			$count=(int)MailDelete::model()->count('time BETWEEN :t1 AND :t2',array(':t1'=>$t1->get(Zend_Date::TIMESTAMP),':t2'=>$t2->get(Zend_Date::TIMESTAMP)));
+			$count=(int)MailDelete::model()->count('user_id = :user_id AND time BETWEEN :t1 AND :t2',array(':user_id'=>$user->id,':t1'=>$t1->get(Zend_Date::TIMESTAMP),':t2'=>$t2->get(Zend_Date::TIMESTAMP)));
 			
 			$title=sprintf('%s %d',$t1->get(Zend_Date::MONTH_NAME),$t1->get(Zend_Date::YEAR));
 			array_unshift($months,array(
@@ -62,6 +64,8 @@ class ReportController extends Controller
 		if(!isset($_GET['t']))
 			throw new CHttpException(400);
 		$t=CPropertyValue::ensureInteger($_GET['t']);
+		
+		$user=Yii::app()->user->getModel();
 		
 		$days=array();
 		$month=new Zend_Date($t,Zend_Date::TIMESTAMP);
@@ -81,7 +85,7 @@ class ReportController extends Controller
 			$t2=clone $t1;
 			$t2->set('23:59:59',Zend_Date::TIMES);
 			
-			$count=(int)MailDelete::model()->count('time BETWEEN :t1 AND :t2',array(':t1'=>$t1->get(Zend_Date::TIMESTAMP),':t2'=>$t2->get(Zend_Date::TIMESTAMP)));
+			$count=(int)MailDelete::model()->count('user_id = :user_id AND time BETWEEN :t1 AND :t2',array(':user_id'=>$user->id, ':t1'=>$t1->get(Zend_Date::TIMESTAMP),':t2'=>$t2->get(Zend_Date::TIMESTAMP)));
 			
 			$days[]=array(
 				'day'=>$i,
